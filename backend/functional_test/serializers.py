@@ -1,10 +1,22 @@
 from pathlib import Path
 
 from rest_framework import serializers
+from django.utils.timezone import localtime
 
 from .models import FunctionalProject, FunctionalTestCase, RequirementDocument, TestCaseGeneration
 
 ALLOWED_EXTENSIONS = {'.pdf', '.docx'}
+
+
+def format_local_datetime(value):
+    if not value:
+        return ''
+    return localtime(value).strftime('%Y-%m-%d %H:%M:%S')
+
+
+class LocalDateTimeField(serializers.DateTimeField):
+    def to_representation(self, value):
+        return format_local_datetime(value)
 
 
 def user_display_name(user):
@@ -16,6 +28,7 @@ def user_display_name(user):
 
 class RequirementDocumentSerializer(serializers.ModelSerializer):
     creator_name = serializers.SerializerMethodField()
+    created_at = LocalDateTimeField(read_only=True)
 
     class Meta:
         model = RequirementDocument
@@ -81,6 +94,8 @@ class FunctionalProjectSerializer(serializers.ModelSerializer):
     requirement_count = serializers.IntegerField(read_only=True)
     requirements = RequirementDocumentSerializer(many=True, read_only=True)
     creator_name = serializers.SerializerMethodField()
+    created_at = LocalDateTimeField(read_only=True)
+    updated_at = LocalDateTimeField(read_only=True)
 
     class Meta:
         model = FunctionalProject
@@ -107,6 +122,7 @@ class FunctionalTestCaseSerializer(serializers.ModelSerializer):
     requirement_title = serializers.SerializerMethodField()
     generation_id = serializers.IntegerField(read_only=True)
     creator_name = serializers.SerializerMethodField()
+    created_at = LocalDateTimeField(read_only=True)
 
     class Meta:
         model = FunctionalTestCase

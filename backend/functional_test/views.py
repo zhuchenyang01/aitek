@@ -38,6 +38,7 @@ from .serializers import (
     FunctionalTestCaseListSerializer,
     FunctionalTestCaseSerializer,
     GenerateRequirementSerializer,
+    format_local_datetime,
     RequirementDocumentSerializer,
     UpdateFunctionalProjectSerializer,
     UpdateRequirementDocumentSerializer,
@@ -101,7 +102,7 @@ def _serialize_testcase_rows(queryset):
     rows = []
     for item in queryset:
         data = FunctionalTestCaseSerializer(item).data
-        data['created_at'] = str(data.get('created_at') or '').replace('T', ' ')[:19]
+        data['created_at'] = format_local_datetime(item.created_at)
         rows.append(data)
     return rows
 
