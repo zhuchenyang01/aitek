@@ -559,11 +559,11 @@ export default {
         const content = event.content || ''
         this.currentStep = content ? `${label}（${content}）` : label
         this.touchGenerateActivity(this.currentStep)
+        this.scrollGenerateContent()
         if (event.status === 'error') {
           this.handleGenerateFailure(content || `${label}失败`)
-        } else if (content) {
-          const prefix = event.status === 'done' ? `${label}完成：` : `${label}：`
-          this.pushGenerateLog(prefix, content)
+        } else if (event.status === 'done' && content) {
+          this.pushGenerateLog(`${label}完成：`, content)
         }
       } else if (type === 'llm_chunk') {
         const prefix = `${event.step_label || event.step || '模型输出'}：`
