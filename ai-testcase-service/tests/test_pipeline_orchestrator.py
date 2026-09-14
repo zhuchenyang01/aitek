@@ -36,32 +36,42 @@ class PipelineOrchestratorTests(unittest.TestCase):
 
     @patch('app.services.pipeline_orchestrator.build_llm_client')
     @patch('app.services.pipeline_orchestrator.split_test_directions', side_effect=_split_gen)
-    @patch('app.services.pipeline_orchestrator.match_single_requirement')
     @patch('app.services.pipeline_orchestrator.extract_features', side_effect=_extract_gen)
     @patch('app.services.pipeline_orchestrator.get_knowledge_base')
     def test_run_pipeline_event_order(
         self,
         mock_get_kb,
         mock_extract,
-        mock_match,
         mock_split,
         mock_build_llm,
     ):
         req_kb = MagicMock(name='需求库')
         case_kb = MagicMock(name='用例库')
         mock_get_kb.side_effect = [req_kb, case_kb]
-        mock_match.return_value = {'模块': '登录', '功能点': '账号登录', 'hits': [], 'hit_count': 0}
-
         mock_llm = mock_build_llm.return_value
         mock_llm.api_key = ''
         mock_llm.chat_stream.return_value = iter(['TC-001'])
 
         orchestrator = PipelineOrchestrator()
-        orchestrator.generator.retrieve = MagicMock(return_value=[])
+        orchestrator.generator.iter_retrieve = MagicMock(
+            return_value=iter(
+                [
+                    {'kind': 'progress', 'content': '正在对查询做 Embedding…'},
+                    {'kind': 'result', 'hits': [{'score': 0.9, 'knowledge_title': '登录需求'}]},
+                ]
+            )
+        )
 
         events = list(orchestrator.run('生成用例', 1, 2, file_path=None))
         types = [event['response_type'] for event in events]
+        kb_logs = [
+            event['content']
+            for event in events
+            if event.get('response_type') == 'pipeline' and event.get('step') == 'kb_match'
+        ]
 
+        self.assertTrue(any('Embedding' in (item or '') for item in kb_logs))
+        self.assertTrue(any('命中' in (item or '') for item in kb_logs))
         self.assertIn('llm_chunk', types)
         self.assertIn('feature_points', types)
         self.assertIn('matched_requirements', types)

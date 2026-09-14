@@ -561,6 +561,9 @@ export default {
         this.touchGenerateActivity(this.currentStep)
         if (event.status === 'error') {
           this.handleGenerateFailure(content || `${label}失败`)
+        } else if (content) {
+          const prefix = event.status === 'done' ? `${label}完成：` : `${label}：`
+          this.pushGenerateLog(prefix, content)
         }
       } else if (type === 'llm_chunk') {
         const prefix = `${event.step_label || event.step || '模型输出'}：`

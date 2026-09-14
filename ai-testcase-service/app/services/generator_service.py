@@ -28,23 +28,42 @@ class TestCaseGenerator:
         self.rerank_top_k = rerank_top_k or current_app.config['RAG_RERANK_TOP_K']
 
     def retrieve(self, knowledge_base_id, query, rerank=True):
+        hits = []
+        for item in self.iter_retrieve(knowledge_base_id, query, rerank=rerank):
+            if item.get('kind') == 'result':
+                hits = item.get('hits') or []
+        return hits
+
+    def iter_retrieve(self, knowledge_base_id, query, rerank=True) -> Iterator[dict]:
         kb = get_knowledge_base(knowledge_base_id)
         if kb is None:
-            return []
+            yield {'kind': 'progress', 'content': '知识库不存在，跳过检索'}
+            yield {'kind': 'result', 'hits': []}
+            return
 
+        yield {'kind': 'progress', 'content': f'加载知识库「{kb.name}」分块…'}
         rows = list_chunks_with_documents(knowledge_base_id)
         if not rows:
-            return []
+            yield {'kind': 'progress', 'content': '知识库暂无分块'}
+            yield {'kind': 'result', 'hits': []}
+            return
 
         pairs = [(chunk, title) for chunk, title in rows if chunk.content or chunk.vector]
         if not pairs:
-            return []
+            yield {'kind': 'result', 'hits': []}
+            return
 
+        yield {
+            'kind': 'progress',
+            'content': f'可用分块 {len(pairs)} 条，正在对查询做 Embedding…',
+        }
         embedder = build_embedding_client(self.embedding_config)
         query_vec = embedder.embed_batch([query])[0]
         query_dim = len(query_vec or [])
         if query_dim <= 0:
-            return []
+            yield {'kind': 'progress', 'content': '查询向量为空，跳过检索'}
+            yield {'kind': 'result', 'hits': []}
+            return
 
         aligned = []
         stale = []
@@ -55,7 +74,16 @@ class TestCaseGenerator:
             else:
                 stale.append((chunk, title))
 
+        yield {
+            'kind': 'progress',
+            'content': f'查询向量维度 {query_dim}，已对齐 {len(aligned)} 条，待补算 {len(stale)} 条',
+        }
+
         if stale:
+            yield {
+                'kind': 'progress',
+                'content': f'正在为 {len(stale)} 条分块补算 {query_dim} 维向量…',
+            }
             try:
                 new_vecs = embedder.embed_batch([item[0].content or '' for item in stale])
                 updates = []
@@ -65,13 +93,21 @@ class TestCaseGenerator:
                     updates.append((chunk, vec))
                     aligned.append((chunk, list(vec), title))
                 save_chunk_vectors(updates)
-            except Exception:
+                yield {
+                    'kind': 'progress',
+                    'content': f'补算完成，已写入 {len(updates)} 条向量',
+                }
+            except Exception as exc:
+                yield {'kind': 'progress', 'content': f'补算向量失败：{exc}'}
                 if not aligned:
-                    return []
+                    yield {'kind': 'result', 'hits': []}
+                    return
 
         if not aligned:
-            return []
+            yield {'kind': 'result', 'hits': []}
+            return
 
+        yield {'kind': 'progress', 'content': f'正在对 {len(aligned)} 条分块计算余弦相似度…'}
         chunks = [item[0] for item in aligned]
         vectors = [item[1] for item in aligned]
         titles = [item[2] for item in aligned]
@@ -94,12 +130,20 @@ class TestCaseGenerator:
                 }
             )
 
+        top_score = f'{hits[0]["score"]:.3f}' if hits else '-'
+        yield {
+            'kind': 'progress',
+            'content': f'召回 Top-{len(hits)}，最高相似度 {top_score}',
+        }
+
         if hits and rerank:
+            yield {'kind': 'progress', 'content': '正在对召回结果重排序…'}
             embedder = build_embedding_client(self.embedding_config)
             reranker = build_rerank_client(self.rerank_config, embedder=embedder)
             reranked = reranker.rerank(query, hits, top_k=self.rerank_top_k, text_key='content')
-            return reranked or hits[: self.rerank_top_k]
-        return hits
+            hits = reranked or hits[: self.rerank_top_k]
+            yield {'kind': 'progress', 'content': f'重排序完成，保留 {len(hits)} 条'}
+        yield {'kind': 'result', 'hits': hits}
 
     def generate_stream(self, query, requirement_kb_id, testcase_kb_id) -> Iterator[dict]:
         req_kb = get_knowledge_base(requirement_kb_id)

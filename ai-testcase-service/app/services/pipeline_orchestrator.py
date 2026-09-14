@@ -9,7 +9,6 @@ from app.services.feature_extractor import extract_features
 from app.services.generator_service import TestCaseGenerator
 from app.services.image_processor import analyze_images, merge_document_text
 from app.services.kb_repository import get_knowledge_base
-from app.services.requirement_matcher import match_single_requirement
 from app.services.test_direction_splitter import split_test_directions
 from app.utils.prompt_loader import render_prompt
 
@@ -116,11 +115,52 @@ class PipelineOrchestrator:
         yield self._feature_points_event(message_id, features)
         yield self._pipeline_event(message_id, 'feature_extract', 'done', f'功能点提取完成：共 {len(features or [])} 条')
 
-        yield self._pipeline_event(message_id, 'kb_match', 'running', '正在关联项目知识库...')
-        matched = [
-            match_single_requirement(feature, requirement_kb_id, self.generator)
-            for feature in (features or [])
-        ]
+        feature_list = features or []
+        total_features = len(feature_list)
+        yield self._pipeline_event(
+            message_id,
+            'kb_match',
+            'running',
+            f'开始向量检索，共 {total_features} 条功能点',
+        )
+        matched = []
+        for index, feature in enumerate(feature_list, 1):
+            module = (feature.get('模块') or '').strip()
+            point = (feature.get('功能点') or '').strip()
+            label = self._short_text(point or module or f'功能点{index}')
+            query_text = f'{module} {point}'.strip()
+            yield self._pipeline_event(
+                message_id,
+                'kb_match',
+                'running',
+                f'[{index}/{total_features}] 检索「{label}」',
+            )
+            hits = []
+            for item in self.generator.iter_retrieve(requirement_kb_id, query_text, rerank=True):
+                if item.get('kind') == 'progress':
+                    yield self._pipeline_event(
+                        message_id,
+                        'kb_match',
+                        'running',
+                        f'[{index}/{total_features}] {item.get("content") or ""}',
+                    )
+                elif item.get('kind') == 'result':
+                    hits = item.get('hits') or []
+            matched.append(
+                {
+                    '模块': module,
+                    '功能点': point,
+                    'query': query_text,
+                    'hits': hits,
+                    'hit_count': len(hits),
+                }
+            )
+            top_score = f'{hits[0]["score"]:.3f}' if hits else '-'
+            top_title = (hits[0].get('knowledge_title') or '') if hits else ''
+            summary = f'[{index}/{total_features}] 「{label}」命中 {len(hits)} 条，最高相似 {top_score}'
+            if top_title:
+                summary += f' · {self._short_text(top_title, 24)}'
+            yield self._pipeline_event(message_id, 'kb_match', 'running', summary)
         yield self._matched_requirements_event(message_id, matched)
         total_hits = sum(item.get('hit_count', 0) for item in matched)
         yield self._pipeline_event(message_id, 'kb_match', 'done', f'需求关联完成：共匹配 {total_hits} 条片段')
@@ -197,6 +237,13 @@ class PipelineOrchestrator:
             'content': content,
             'done': False,
         }
+
+    @staticmethod
+    def _short_text(text, limit=48):
+        value = ' '.join(str(text or '').split())
+        if len(value) <= limit:
+            return value
+        return value[:limit] + '…'
 
     @staticmethod
     def _pipeline_event(message_id, step, status, content):
