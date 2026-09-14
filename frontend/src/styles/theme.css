@@ -1,0 +1,63 @@
+:root {
+  --brand: #0f766e;
+  --brand-hover: #0d9488;
+  --brand-active: #0b6b63;
+  --brand-border: #99f6e4;
+}
+
+/* 主色实心按钮（确定、登录、提交等） */
+.el-button--primary {
+  background-color: var(--brand);
+  border-color: var(--brand);
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background-color: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #fff;
+}
+
+.el-button--primary:active {
+  background-color: var(--brand-active);
+  border-color: var(--brand-active);
+  color: #fff;
+}
+
+.el-button--primary.is-disabled,
+.el-button--primary.is-disabled:hover,
+.el-button--primary.is-disabled:focus,
+.el-button--primary.is-disabled:active {
+  background-color: #99f6e4;
+  border-color: #99f6e4;
+  color: #fff;
+}
+
+/* 白底描边按钮（工具栏新增、新建等） */
+.el-button--primary.is-plain {
+  color: var(--brand);
+  background: #fff;
+  border-color: var(--brand-border);
+}
+
+.el-button--primary.is-plain:hover,
+.el-button--primary.is-plain:focus {
+  background: #fff;
+  border-color: var(--brand);
+  color: var(--brand-hover);
+}
+
+.el-button--primary.is-plain:active {
+  background: #fff;
+  border-color: var(--brand-active);
+  color: var(--brand-active);
+}
+
+.el-button--primary.is-plain.is-disabled,
+.el-button--primary.is-plain.is-disabled:hover,
+.el-button--primary.is-plain.is-disabled:focus,
+.el-button--primary.is-plain.is-disabled:active {
+  color: #99f6e4;
+  background: #fff;
+  border-color: #e5e7eb;
+}
