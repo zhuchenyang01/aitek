@@ -1,0 +1,28 @@
+# 虚拟环境与依赖
+**/venv/
+**/.venv/
+**/node_modules/
+frontend/dist/
+backend/staticfiles/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 密钥与本地环境（只提交 *.example）
+.env
+**/.env
+!.env.example
+!**/.env.example
+
+# 本地数据与日志
+*.sqlite3
+*.log
+media/
+uploads/
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/
+*.swp

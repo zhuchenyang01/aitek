@@ -1,0 +1,21 @@
+[Unit]
+Description=AITEK Django BFF
+After=network.target mysql.service aitek-ai.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/aitek/backend
+Environment=DJANGO_DEBUG=0
+Environment=DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,159.75.5.97
+Environment=DJANGO_CSRF_TRUSTED_ORIGINS=http://159.75.5.97
+Environment=AI_SERVICE_BASE_URL=http://127.0.0.1:8002
+Environment=AI_SERVICE_INTERNAL_TOKEN=dev-internal-token
+EnvironmentFile=-/opt/aitek/backend/.env
+ExecStart=/opt/aitek/backend/venv/bin/gunicorn aitek_back.wsgi:application -b 127.0.0.1:8001 -t 300 --workers 3
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

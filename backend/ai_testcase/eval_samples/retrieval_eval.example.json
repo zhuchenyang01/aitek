@@ -1,0 +1,16 @@
+{
+  "knowledge_base_id": 1,
+  "queries": [
+    {
+      "query": "用户登录失败超过3次是否锁定账号？",
+      "relevant_chunk_ids": [12, 15],
+      "relevant_doc_ids": [3],
+      "note": "先运行 dump_kb_chunks 拿到真实分块 ID，再改这里"
+    },
+    {
+      "query": "登录成功后如何签发 Token？",
+      "relevant_chunk_ids": [12],
+      "relevant_doc_ids": [3]
+    }
+  ]
+}
