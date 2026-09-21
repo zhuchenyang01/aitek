@@ -146,6 +146,11 @@ class FunctionalTestCase(models.Model):
         ordering = ['sort_order', 'id']
         verbose_name = '功能测试用例'
         verbose_name_plural = verbose_name
+        indexes = [
+            models.Index(fields=['user', 'created_at'], name='ftc_user_created_idx'),
+            models.Index(fields=['user', 'project', 'created_at'], name='ftc_user_proj_created_idx'),
+            models.Index(fields=['user', 'requirement', 'created_at'], name='ftc_user_req_created_idx'),
+        ]
 
     def __str__(self):
         return self.title or self.case_no or f'用例#{self.id}'

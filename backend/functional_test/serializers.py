@@ -155,10 +155,21 @@ class FunctionalTestCaseSerializer(serializers.ModelSerializer):
 
 
 class FunctionalTestCaseListSerializer(FunctionalTestCaseSerializer):
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        for key in ('precondition', 'steps', 'expected_result'):
-            value = data.get(key) or ''
-            if len(value) > 240:
-                data[key] = value[:240] + '…'
-        return data
+    precondition = serializers.SerializerMethodField()
+    steps = serializers.SerializerMethodField()
+    expected_result = serializers.SerializerMethodField()
+
+    def _clip(self, value):
+        text = value or ''
+        if len(text) > 240:
+            return text[:240] + '…'
+        return text
+
+    def get_precondition(self, obj):
+        return self._clip(getattr(obj, '_precondition_preview', None))
+
+    def get_steps(self, obj):
+        return self._clip(getattr(obj, '_steps_preview', None))
+
+    def get_expected_result(self, obj):
+        return self._clip(getattr(obj, '_expected_preview', None))

@@ -2,6 +2,7 @@ from pathlib import Path
 from utils.user_errors import user_facing_error
 
 from django.db.models import Count, Prefetch
+from django.db.models.functions import Substr
 from django.http import HttpResponse, StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
@@ -87,9 +88,36 @@ def testcase_queryset(user):
     return FunctionalTestCase.objects.filter(user=user).select_related(
         'project',
         'requirement',
-        'generation',
         'user',
     )
+
+
+def apply_testcase_filters(queryset, request):
+    project_id = request.query_params.get('project_id')
+    requirement_id = request.query_params.get('requirement_id')
+    generation_id = request.query_params.get('generation_id')
+    if project_id:
+        queryset = queryset.filter(project_id=project_id)
+    if requirement_id:
+        queryset = queryset.filter(requirement_id=requirement_id)
+    if generation_id:
+        queryset = queryset.filter(generation_id=generation_id)
+    return queryset
+
+
+LIST_PREVIEW_LEN = 241
+
+
+def testcase_list_page(queryset, start, page_size):
+    return queryset.select_related('project', 'requirement', 'user').defer(
+        'precondition',
+        'steps',
+        'expected_result',
+    ).annotate(
+        _precondition_preview=Substr('precondition', 1, LIST_PREVIEW_LEN),
+        _steps_preview=Substr('steps', 1, LIST_PREVIEW_LEN),
+        _expected_preview=Substr('expected_result', 1, LIST_PREVIEW_LEN),
+    )[start : start + page_size]
 
 
 def delete_owned_testcases(user, ids):
@@ -159,23 +187,14 @@ def parse_page_params(request, default_size=20):
 
 @api_view(['GET'])
 def testcase_list(request):
-    queryset = testcase_queryset(request.user)
-    project_id = request.query_params.get('project_id')
-    requirement_id = request.query_params.get('requirement_id')
-    generation_id = request.query_params.get('generation_id')
-
-    if project_id:
-        queryset = queryset.filter(project_id=project_id)
-    if requirement_id:
-        queryset = queryset.filter(requirement_id=requirement_id)
-    if generation_id:
-        queryset = queryset.filter(generation_id=generation_id)
-
-    queryset = queryset.order_by('-created_at', 'sort_order', 'id')
+    queryset = apply_testcase_filters(
+        FunctionalTestCase.objects.filter(user=request.user),
+        request,
+    ).order_by('-created_at', 'sort_order', 'id')
     total = queryset.count()
     page, page_size = parse_page_params(request)
     start = (page - 1) * page_size
-    items = queryset[start : start + page_size]
+    items = testcase_list_page(queryset, start, page_size)
     return ok(
         {
             'items': FunctionalTestCaseListSerializer(items, many=True).data,
@@ -219,19 +238,11 @@ def testcase_batch_delete(request):
 
 @api_view(['GET'])
 def testcase_export(request):
-    queryset = testcase_queryset(request.user)
-    project_id = request.query_params.get('project_id')
-    requirement_id = request.query_params.get('requirement_id')
-    generation_id = request.query_params.get('generation_id')
-
-    if project_id:
-        queryset = queryset.filter(project_id=project_id)
-    if requirement_id:
-        queryset = queryset.filter(requirement_id=requirement_id)
-    if generation_id:
-        queryset = queryset.filter(generation_id=generation_id)
-
-    queryset = queryset.order_by('-created_at', 'sort_order', 'id')
+    queryset = apply_testcase_filters(testcase_queryset(request.user), request).order_by(
+        '-created_at',
+        'sort_order',
+        'id',
+    )
     if not queryset.exists():
         return fail('没有可导出的测试用例')
 

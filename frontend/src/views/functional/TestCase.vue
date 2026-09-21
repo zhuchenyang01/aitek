@@ -25,6 +25,7 @@
         filterable
         clearable
         class="filter-select"
+        @change="handleFilterChange"
       >
         <el-option label="全部" value="" />
         <el-option
@@ -207,22 +208,15 @@ export default {
     }
   },
   watch: {
-    '$route.query': {
-      immediate: true,
-      handler(query) {
-        this.filterProjectId = query.project_id ? Number(query.project_id) : ''
-        this.filterRequirementId = query.requirement_id ? Number(query.requirement_id) : ''
+    '$route.query'(query) {
+      if (this.applyRouteQuery(query)) {
+        this.page = 1
+        this.fetchList()
       }
-    },
-    filterProjectId() {
-      if (this.filterRequirementId && !this.requirementOptions.some(item => item.id === this.filterRequirementId)) {
-        this.filterRequirementId = ''
-      }
-    },
-    filterRequirementId: 'handleFilterChange',
-    filterProjectId: 'handleFilterChange'
+    }
   },
   created() {
+    this.applyRouteQuery(this.$route.query)
     this.bootstrap()
   },
   methods: {
@@ -230,9 +224,16 @@ export default {
       if (!value) return ''
       return String(value).replace('T', ' ').slice(0, 19)
     },
+    applyRouteQuery(query) {
+      const projectId = query && query.project_id ? Number(query.project_id) : ''
+      const requirementId = query && query.requirement_id ? Number(query.requirement_id) : ''
+      const changed = projectId !== this.filterProjectId || requirementId !== this.filterRequirementId
+      this.filterProjectId = projectId
+      this.filterRequirementId = requirementId
+      return changed
+    },
     async bootstrap() {
-      await this.fetchProjects()
-      await this.fetchList()
+      await Promise.all([this.fetchProjects(), this.fetchList()])
     },
     async fetchProjects() {
       try {
@@ -246,6 +247,7 @@ export default {
       if (this.filterRequirementId && !this.requirementOptions.some(item => item.id === this.filterRequirementId)) {
         this.filterRequirementId = ''
       }
+      this.handleFilterChange()
     },
     handleFilterChange() {
       this.page = 1
