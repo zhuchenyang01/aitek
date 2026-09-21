@@ -1,4 +1,5 @@
 from pathlib import Path
+from utils.user_errors import user_facing_error
 
 from django.db.models import Count, Prefetch
 from django.http import HttpResponse, StreamingHttpResponse
@@ -363,12 +364,11 @@ def requirement_generate(request, pk, doc_id):
                 embedding_config=serialize_embedding_client(embedder),
             )
     except ValueError as exc:
-        return fail(str(exc))
+        return fail(user_facing_error(exc, '需求文档入库失败'))
     except AIServiceError as exc:
         return fail(exc.message, http_status=exc.status_code if exc.status_code in (400, 502, 503) else 502)
-    except Exception as exc:
-        return fail(f'需求文档入库失败：{exc}')
-
+    except Exception:
+        return fail('需求文档入库失败')
     title = (document.title or document.source_filename or '需求文档').strip()
     query = serializer.validated_data.get('query') or f'请根据《{title}》生成完整功能测试用例，覆盖主流程与异常场景。'
 

@@ -2,6 +2,7 @@ import axios from 'axios'
 import { Message } from 'element-ui'
 import { encryptObj, decryptObj } from '@/utils/crypto'
 import { needCrypto } from '@/utils/cryptoApis'
+import { humanizeUserMessage } from '@/utils/userError'
 
 const service = axios.create({
   baseURL: process.env.VUE_APP_API_BASE || '',
@@ -76,10 +77,10 @@ service.interceptors.request.use(config => {
 function extractErrorMsg(err) {
   let data = err.response && err.response.data
   data = unwrapPayload(data)
-  if (!data) return err.message || '请求失败'
-  if (typeof data.msg === 'string' && data.msg) return data.msg
-  if (typeof data.detail === 'string' && data.detail) return data.detail
-  if (typeof data === 'string') return data
+  if (!data) return humanizeUserMessage(err.message, '请求失败')
+  if (typeof data.msg === 'string' && data.msg) return humanizeUserMessage(data.msg)
+  if (typeof data.detail === 'string' && data.detail) return humanizeUserMessage(data.detail)
+  if (typeof data === 'string') return humanizeUserMessage(data)
   return '请求失败'
 }
 
@@ -95,7 +96,7 @@ service.interceptors.response.use(res => {
       return Promise.reject(payload)
     }
     if (payload.code !== 0) {
-      Message.error(payload.msg || '操作失败')
+      Message.error(humanizeUserMessage(payload.msg || '操作失败'))
       return Promise.reject(payload)
     }
   }

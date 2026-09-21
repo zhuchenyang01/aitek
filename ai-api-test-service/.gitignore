@@ -1,0 +1,8 @@
+# runtime artifacts
+*.pyc
+__pycache__/
+.venv/
+venv/
+logs/
+reports/
+.env

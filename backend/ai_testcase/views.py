@@ -1,3 +1,4 @@
+from utils.user_errors import user_facing_error
 from django.db.models import Count
 from django.http import HttpResponse, StreamingHttpResponse
 from rest_framework import status
@@ -144,7 +145,7 @@ def knowledge_base_documents(request, pk):
     try:
         document = ingest_uploaded_file(kb, uploaded, title=title)
     except ValueError as exc:
-        return fail(str(exc))
+        return fail(user_facing_error(exc))
     document.chunk_count = document.chunks.count()
     return ok(KnowledgeDocumentSerializer(document).data, msg='文档已入库', http_status=status.HTTP_201_CREATED)
 
@@ -206,7 +207,7 @@ def eval_parse(request):
     try:
         queries = parse_eval_excel(uploaded)
     except ValueError as exc:
-        return fail(str(exc))
+        return fail(user_facing_error(exc))
     return ok({'queries': queries}, msg='解析成功')
 
 
@@ -230,7 +231,7 @@ def eval_run(request):
     try:
         result = evaluate_queries(serializer.validated_data['queries'], retrieve_fn, ks=ks)
     except ValueError as exc:
-        return fail(str(exc))
+        return fail(user_facing_error(exc))
     result['knowledge_base_id'] = kb.id
     result['knowledge_base_name'] = kb.name
     result['kb_type'] = kb.kb_type

@@ -31,22 +31,46 @@ const routes = [
         component: () => import(/* webpackChunkName: "functional" */ '../views/functional/Requirement.vue')
       },
       {
-        path: 'api-test/project-link',
-        name: 'ApiTestProjectLink',
+        path: 'api-test/apis',
+        name: 'ApiManage',
         meta: { requiresAuth: true },
-        component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/ProjectLink.vue')
+        component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/ApiManage.vue')
+      },
+      {
+        path: 'api-test/cases',
+        name: 'ApiCase',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/ApiCase.vue')
+      },
+      {
+        path: 'api-test/data',
+        name: 'ApiData',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/ApiData.vue')
+      },
+      {
+        path: 'api-test/runs',
+        name: 'ApiRun',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/ApiRun.vue')
+      },
+      {
+        path: 'api-test/reports',
+        name: 'ApiReport',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/ApiReport.vue')
+      },
+      {
+        path: 'api-test/project-link',
+        redirect: '/api-test/apis'
       },
       {
         path: 'api-test/docs',
-        name: 'ApiTestDocs',
-        meta: { requiresAuth: true },
-        component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/DocManage.vue')
+        redirect: '/api-test/apis'
       },
       {
         path: 'api-test/test',
-        name: 'ApiTest',
-        meta: { requiresAuth: true },
-        component: () => import(/* webpackChunkName: "api-test" */ '../views/ai-api-test/Index.vue')
+        redirect: '/api-test/cases'
       },
       {
         path: 'web-auto',

@@ -20,6 +20,8 @@ __pycache__/
 *.log
 media/
 uploads/
+ai-api-test-service/reports/
+ai-api-test-service/logs/
 
 # 编辑器 / 系统
 .DS_Store

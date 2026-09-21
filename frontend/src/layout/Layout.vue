@@ -32,9 +32,11 @@
             <i class="el-icon-connection" />
             <span>接口测试</span>
           </template>
-          <el-menu-item index="/api-test/project-link">项目关联</el-menu-item>
-          <el-menu-item index="/api-test/docs">接口文档管理</el-menu-item>
-          <el-menu-item index="/api-test/test">接口测试</el-menu-item>
+          <el-menu-item index="/api-test/apis">接口管理</el-menu-item>
+          <el-menu-item index="/api-test/cases">接口用例</el-menu-item>
+          <el-menu-item index="/api-test/data">数据配置</el-menu-item>
+          <el-menu-item index="/api-test/runs">用例执行</el-menu-item>
+          <el-menu-item index="/api-test/reports">测试报告</el-menu-item>
         </el-submenu>
 
         <el-menu-item index="/web-auto">
@@ -100,9 +102,11 @@ const TITLE_MAP = {
   '/functional/projects': '项目管理',
   '/functional/requirements': '需求管理',
   '/functional/testcases': '测试用例',
-  '/api-test/project-link': '项目关联',
-  '/api-test/docs': '接口文档管理',
-  '/api-test/test': '接口测试',
+  '/api-test/apis': '接口管理',
+  '/api-test/cases': '接口用例',
+  '/api-test/data': '数据配置',
+  '/api-test/runs': '用例执行',
+  '/api-test/reports': '测试报告',
   '/web-auto': 'Web 自动化测试',
   '/app-auto': 'APP 自动化测试',
   '/project-config': '项目配置',

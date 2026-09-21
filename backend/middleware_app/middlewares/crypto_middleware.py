@@ -28,6 +28,8 @@ class CryptoMiddleware:
             return error_response
 
         response = self.get_response(request)
+        if getattr(request, '_crypto_plain_request', False):
+            return response
         return self._encrypt_response(response)
 
     def _decrypt_request(self, request):
@@ -48,10 +50,9 @@ class CryptoMiddleware:
             )
 
         if not isinstance(data, dict) or 'payload' not in data:
-            return JsonResponse(
-                {'code': 1, 'msg': '请求缺少加密 payload', 'data': None},
-                status=400,
-            )
+            # 接口自动化可直接提交业务 JSON；浏览器登录仍走加密 payload
+            request._crypto_plain_request = True
+            return None
 
         try:
             plain = decrypt_text(data['payload'])

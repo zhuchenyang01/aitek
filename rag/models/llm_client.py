@@ -60,6 +60,17 @@ class LLMClient:
         max_tokens: int = 2048,
     ) -> Iterator[str]:
         """流式输出增量文本。"""
+        for event in self.iter_chat_events(messages, temperature=temperature, max_tokens=max_tokens):
+            if event.get("type") == "answer" and event.get("content"):
+                yield event["content"]
+
+    def iter_chat_events(
+        self,
+        messages: list[dict[str, Any]],
+        temperature: float = 0.2,
+        max_tokens: int = 2048,
+    ) -> Iterator[dict[str, str]]:
+        """流式输出思考/正文事件。"""
         if not self.api_key:
             raise RuntimeError("缺少 DEEPSEEK_API_KEY，无法调用对话模型")
 
@@ -97,6 +108,9 @@ class LLMClient:
                     if not choices:
                         continue
                     delta = choices[0].get("delta") or {}
+                    reasoning = delta.get("reasoning_content") or delta.get("reasoning") or ""
+                    if reasoning:
+                        yield {"type": "thinking", "content": reasoning}
                     content = delta.get("content") or ""
                     if content:
-                        yield content
+                        yield {"type": "answer", "content": content}

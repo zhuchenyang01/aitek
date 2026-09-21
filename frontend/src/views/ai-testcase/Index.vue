@@ -175,6 +175,7 @@
 
 <script>
 import { Message } from 'element-ui'
+import { humanizeUserMessage } from '@/utils/userError'
 import {
   addAiTestcaseKnowledgeDocument,
   askAiTestcaseStream,
@@ -516,7 +517,7 @@ export default {
           } else if (type === 'answer') {
             if (event.content) assistantMsg.content += event.content
           } else if (type === 'error') {
-            Message.error(event.content || '生成失败')
+            Message.error(humanizeUserMessage(event.content || '生成失败'))
           }
           this.scrollToBottom()
         })
@@ -526,7 +527,7 @@ export default {
             resolve()
             return
           }
-          if (err && err.msg) Message.error(err.msg)
+          if (err && err.msg) Message.error(humanizeUserMessage(err.msg))
           reject(err)
         })
       })

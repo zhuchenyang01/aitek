@@ -123,60 +123,27 @@
       </div>
     </el-dialog>
 
-    <el-dialog
-      :title="generateDialogTitle"
+    <generate-process-dialog
       :visible.sync="generateDialogVisible"
-      width="720px"
-      top="8vh"
-      :close-on-click-modal="false"
+      :title="generateDialogTitle"
+      :generating="generating"
+      :error="generateError"
+      :thinking="generateResult.thinking"
+      :answer="generateResult.answer"
+      :steps="generateSteps"
+      :current-step="currentStep"
+      :result-hint="savedResultHint"
+      :can-view="!!savedGeneration"
+      @abort="handleAbortGenerate"
+      @view="goToTestcases"
       @closed="resetGenerateResult"
-    >
-      <el-alert
-        v-if="generateError"
-        class="generate-alert"
-        :title="generateError"
-        type="error"
-        show-icon
-        :closable="false"
-      />
-      <div class="generate-body">
-        <div ref="generateLogRef" class="generate-log">
-          <div
-            v-for="(log, index) in generateLogs"
-            :key="index"
-            class="generate-log-row"
-            :class="'log-' + (log.level || 'info')"
-          >
-            <i
-              class="log-icon"
-              :class="log.level === 'error' ? 'el-icon-warning' : (log.level === 'warn' ? 'el-icon-time' : 'el-icon-info')"
-            />
-            <span class="log-text">
-              <span v-if="log.prefix" class="log-prefix">{{ log.prefix }}</span>{{ log.text }}
-            </span>
-            <span class="log-time">{{ log.time }}</span>
-          </div>
-          <div v-if="generating && !generateError" class="generate-log-row processing">
-            <i class="el-icon-loading log-icon" />
-            <span class="log-text">正在处理：{{ currentStep || '启动中…' }}</span>
-            <span class="log-time">{{ processingTime }}</span>
-          </div>
-          <div v-if="!generating && !generateLogs.length" class="generate-log-empty">
-            等待开始...
-          </div>
-        </div>
-      </div>
-      <div slot="footer">
-        <el-button v-if="savedGeneration" type="primary" plain @click="goToTestcases">查看用例</el-button>
-        <el-button v-if="generating" type="warning" plain @click="handleAbortGenerate">停止生成</el-button>
-        <el-button @click="generateDialogVisible = false">关闭</el-button>
-      </div>
-    </el-dialog>
+    />
   </div>
 </template>
 
 <script>
 import { Message, MessageBox } from 'element-ui'
+import GenerateProcessDialog from '@/components/GenerateProcessDialog.vue'
 import {
   deleteProjectRequirement,
   generateProjectRequirementStream,
@@ -199,6 +166,7 @@ const emptyEditForm = () => ({
 
 export default {
   name: 'FunctionalRequirement',
+  components: { GenerateProcessDialog },
   data() {
     return {
       loading: false,
@@ -213,6 +181,7 @@ export default {
       generating: false,
       generatingId: null,
       generateLogs: [],
+      generateSteps: [],
       generateLineBuffer: '',
       generateStreamPrefix: '',
       generateThinkingLogged: false,
@@ -259,6 +228,11 @@ export default {
       if (!this.generateTarget) return '生成测试用例'
       const name = this.generateTarget.title || this.generateTarget.source_filename || '需求文档'
       return `生成测试用例 · ${name}`
+    },
+    savedResultHint() {
+      if (!this.savedGeneration) return ''
+      const count = this.savedGeneration.case_count || 0
+      return `已保存 ${count} 条测试用例`
     }
   },
   created() {
@@ -290,10 +264,13 @@ export default {
         time: this.formatLogTime(new Date()),
         level
       })
+      const stepText = `${prefix}${content}`.replace(/\s+/g, ' ').trim()
+      if (stepText && (level === 'error' || level === 'warn' || /完成|开始|保存/.test(prefix))) {
+        this.generateSteps = this.generateSteps.concat([stepText])
+      }
       this.processingTime = this.formatLogTime(new Date())
       this.lastEventAt = Date.now()
       this.stallWarned = false
-      this.scrollGenerateContent()
     },
     touchGenerateActivity(step) {
       this.currentStep = step || this.currentStep
@@ -336,6 +313,15 @@ export default {
       this.pushGenerateLog('生成失败：', text, 'error')
       Message.error(text)
     },
+    mergeThinking(chunk) {
+      if (!chunk) return
+      const prev = this.generateResult.thinking || ''
+      if (!prev || chunk.startsWith(prev)) {
+        this.generateResult.thinking = chunk
+        return
+      }
+      this.generateResult.thinking = prev + chunk
+    },
     appendAnswerChunk(chunk, prefix) {
       if (!chunk) return
       if (prefix && prefix !== this.generateStreamPrefix) {
@@ -375,7 +361,6 @@ export default {
       this.processingTime = this.formatLogTime(new Date())
       this.lastEventAt = Date.now()
       this.stallWarned = false
-      this.scrollGenerateContent()
     },
     commitGenerateLine(text) {
       const last = this.generateLogs[this.generateLogs.length - 1]
@@ -494,6 +479,7 @@ export default {
       }
       this.generateTarget = row
       this.generateLogs = []
+      this.generateSteps = []
       this.generateLineBuffer = ''
       this.generateStreamPrefix = ''
       this.generateThinkingLogged = false
@@ -527,6 +513,7 @@ export default {
         })
         .catch(err => {
           if (err && err.name === 'AbortError') return
+          if (this.generateStatus === 'aborted') return
           const message = (err && err.msg) || (err && err.message) || '生成失败，请稍后重试'
           this.handleGenerateFailure(message)
         })
@@ -544,14 +531,13 @@ export default {
           this.generating = false
           this.generatingId = null
           this.generateAbortFn = null
-          this.scrollGenerateContent()
         })
     },
     handleGenerateStreamEvent(event) {
       const type = event.response_type
       this.touchGenerateActivity(this.currentStep)
       if (type === 'thinking') {
-        this.generateResult.thinking = event.content || this.generateResult.thinking
+        this.mergeThinking(event.content || '')
       } else if (type === 'references') {
         this.generateResult.references = event.knowledge_references || []
       } else if (type === 'pipeline') {
@@ -559,16 +545,26 @@ export default {
         const content = event.content || ''
         this.currentStep = content ? `${label}（${content}）` : label
         this.touchGenerateActivity(this.currentStep)
-        this.scrollGenerateContent()
+        if (event.status === 'done' || event.status === 'error' || event.status === 'start') {
+          const last = this.generateSteps[this.generateSteps.length - 1]
+          if (this.currentStep && last !== this.currentStep) {
+            this.generateSteps = this.generateSteps.concat([this.currentStep])
+          }
+        }
         if (event.status === 'error') {
           this.handleGenerateFailure(content || `${label}失败`)
         } else if (event.status === 'done' && content) {
           this.pushGenerateLog(`${label}完成：`, content)
         }
       } else if (type === 'llm_chunk') {
-        const prefix = `${event.step_label || event.step || '模型输出'}：`
-        this.currentStep = event.step_label || event.step || '模型输出'
-        this.appendAnswerChunk(event.content || '', prefix)
+        const step = event.step || ''
+        const label = event.step_label || event.step || '模型输出'
+        this.currentStep = label
+        if (step === 'testcase_generate') {
+          this.appendAnswerChunk(event.content || '', '用例生成：')
+        } else {
+          this.mergeThinking(event.content || '')
+        }
       } else if (type === 'answer') {
         this.currentStep = '用例生成'
         this.appendAnswerChunk(event.content || '', '用例生成：')
@@ -603,15 +599,12 @@ export default {
       this.$router.push({ path: '/functional/testcases', query })
     },
     handleAbortGenerate() {
+      this.generateStatus = 'aborted'
+      this.generating = false
+      this.generatingId = null
       if (this.generateAbortFn) {
         this.generateAbortFn()
       }
-    },
-    scrollGenerateContent() {
-      this.$nextTick(() => {
-        const el = this.$refs.generateLogRef
-        if (el) el.scrollTop = el.scrollHeight
-      })
     },
     resetGenerateResult() {
       this.clearStallWatchdog()
@@ -623,6 +616,7 @@ export default {
       this.generatingId = null
       this.generateTarget = null
       this.generateLogs = []
+      this.generateSteps = []
       this.generateLineBuffer = ''
       this.generateStreamPrefix = ''
       this.generateThinkingLogged = false
@@ -721,96 +715,5 @@ export default {
 
 .btn-delete {
   color: #dc2626;
-}
-
-.generate-alert {
-  margin-bottom: 12px;
-}
-
-.generate-body {
-  height: 420px;
-}
-
-.generate-log {
-  height: 100%;
-  overflow-y: auto;
-  border: 1px solid #e8edf3;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.generate-log-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 13px;
-  line-height: 1.4;
-  min-height: 40px;
-}
-
-.generate-log-row:last-child {
-  border-bottom: none;
-}
-
-.generate-log-row.log-error {
-  background: #fef2f2;
-}
-
-.generate-log-row.log-error .log-icon,
-.generate-log-row.log-error .log-text,
-.generate-log-row.log-error .log-prefix {
-  color: #dc2626;
-}
-
-.generate-log-row.log-warn {
-  background: #fffbeb;
-}
-
-.generate-log-row.log-warn .log-icon,
-.generate-log-row.log-warn .log-text,
-.generate-log-row.log-warn .log-prefix {
-  color: #d97706;
-}
-
-.log-icon {
-  flex-shrink: 0;
-  color: #9ca3af;
-  font-size: 14px;
-}
-
-.log-text {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #374151;
-}
-
-.log-prefix {
-  color: #111827;
-  font-weight: 500;
-}
-
-.log-time {
-  flex-shrink: 0;
-  color: #9ca3af;
-  font-size: 12px;
-  margin-left: 12px;
-}
-
-.processing .log-text {
-  color: #6b7280;
-}
-
-.generate-log-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #9ca3af;
-  font-size: 13px;
 }
 </style>
