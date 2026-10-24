@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'project_config',
     'functional_test',
     'agent_test',
+    'monitor',
 ]
 
 MIDDLEWARE = [

@@ -85,6 +85,18 @@ const routes = [
         component: () => import(/* webpackChunkName: "agent-test" */ '../views/agent-test/SecurityReport.vue')
       },
       {
+        path: 'monitor/servers',
+        name: 'MonitorServers',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "monitor" */ '../views/monitor/Servers.vue')
+      },
+      {
+        path: 'monitor/dashboard',
+        name: 'MonitorDashboard',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "monitor" */ '../views/monitor/Dashboard.vue')
+      },
+      {
         path: 'api-test/project-link',
         redirect: '/api-test/apis'
       },

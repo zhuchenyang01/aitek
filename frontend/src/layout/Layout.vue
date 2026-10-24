@@ -50,6 +50,15 @@
           <el-menu-item index="/agent-test/security-reports">安全报告</el-menu-item>
         </el-submenu>
 
+        <el-submenu index="monitor">
+          <template slot="title">
+            <i class="el-icon-data-line" />
+            <span>监控平台</span>
+          </template>
+          <el-menu-item index="/monitor/servers">服务器管理</el-menu-item>
+          <el-menu-item index="/monitor/dashboard">监控看板</el-menu-item>
+        </el-submenu>
+
         <!-- Web / APP 自动化暂无实际内容，菜单先隐藏 -->
         <!-- <el-menu-item index="/web-auto">
           <i class="el-icon-monitor" />

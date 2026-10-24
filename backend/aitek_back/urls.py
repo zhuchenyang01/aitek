@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/project-config/', include('project_config.urls')),
     path('api/functional-test/', include('functional_test.urls')),
     path('api/agent-test/', include('agent_test.urls')),
+    path('api/monitor/', include('monitor.urls')),
 ]
