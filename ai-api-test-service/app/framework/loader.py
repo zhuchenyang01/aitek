@@ -64,7 +64,7 @@ def build_test_case(spec, timeout, log):
             self.assertTrue(ok, message)
 
             for item in current.get('assertions') or []:
-                ok, message = check_assertion_item(result['response_text'], item)
+                ok, message = check_assertion_item(result, item)
                 ApiHttpTest.assertion_logs.append(message)
                 log(message)
                 self.assertTrue(ok, message)

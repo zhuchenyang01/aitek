@@ -63,6 +63,34 @@ class RunnerTests(unittest.TestCase):
         self.assertIn('addSuccess', events)
 
 
+class AssertionTests(unittest.TestCase):
+    def test_eq_and_contains(self):
+        from app.framework.assertions import check_assertion_item
+
+        http = {
+            'status_code': 200,
+            'response_text': '{"code":0,"msg":"登录成功","data":{"token":"abc"}}',
+            'response_headers': {'Content-Type': 'application/json'},
+            'elapsed_ms': 12,
+        }
+        ok, _ = check_assertion_item(http, {'source': 'status', 'operator': 'eq', 'expected': '200'})
+        self.assertTrue(ok)
+        ok, _ = check_assertion_item(http, {'source': 'json', 'path': 'code', 'operator': 'eq', 'expected': '0'})
+        self.assertTrue(ok)
+        ok, _ = check_assertion_item(http, {'source': 'json', 'path': 'msg', 'operator': 'contains', 'expected': '成功'})
+        self.assertTrue(ok)
+        ok, _ = check_assertion_item(http, {'source': 'json', 'path': 'data.token', 'operator': 'exists'})
+        self.assertTrue(ok)
+        ok, _ = check_assertion_item(http, {'source': 'body', 'operator': 'contains', 'expected': 'token'})
+        self.assertTrue(ok)
+        ok, _ = check_assertion_item(http, {'source': 'json', 'path': 'code', 'operator': 'eq', 'expected': '1'})
+        self.assertFalse(ok)
+        ok, _ = check_assertion_item(http, {'name': 'status', 'expected': '200'})
+        self.assertTrue(ok)
+        ok, _ = check_assertion_item(http, {'name': 'code', 'expected': '0'})
+        self.assertTrue(ok)
+
+
 class VarsTests(unittest.TestCase):
     def test_apply_and_extract(self):
         from app.framework.vars import apply_vars, extract_variables

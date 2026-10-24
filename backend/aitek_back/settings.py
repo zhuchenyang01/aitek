@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'ci',
     'project_config',
     'functional_test',
+    'agent_test',
 ]
 
 MIDDLEWARE = [

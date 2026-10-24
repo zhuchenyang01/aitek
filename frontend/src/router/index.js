@@ -61,6 +61,30 @@ const routes = [
         component: () => import(/* webpackChunkName: "api-test" */ '../views/api-test/ApiReport.vue')
       },
       {
+        path: 'agent-test/projects',
+        name: 'AgentTestProjects',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "agent-test" */ '../views/agent-test/Project.vue')
+      },
+      {
+        path: 'agent-test/cases',
+        name: 'AgentTestCases',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "agent-test" */ '../views/agent-test/Case.vue')
+      },
+      {
+        path: 'agent-test/reports',
+        name: 'AgentTestReports',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "agent-test" */ '../views/agent-test/Report.vue')
+      },
+      {
+        path: 'agent-test/security-reports',
+        name: 'AgentTestSecurityReports',
+        meta: { requiresAuth: true },
+        component: () => import(/* webpackChunkName: "agent-test" */ '../views/agent-test/SecurityReport.vue')
+      },
+      {
         path: 'api-test/project-link',
         redirect: '/api-test/apis'
       },
@@ -72,17 +96,14 @@ const routes = [
         path: 'api-test/test',
         redirect: '/api-test/cases'
       },
+      // Web / APP 自动化暂无实际内容，路由先下线（直链也回到首页）
       {
         path: 'web-auto',
-        name: 'WebAuto',
-        meta: { requiresAuth: true },
-        component: () => import(/* webpackChunkName: "web-auto" */ '../views/ai-web-test/Index.vue')
+        redirect: '/'
       },
       {
         path: 'app-auto',
-        name: 'AppAuto',
-        meta: { requiresAuth: true },
-        component: () => import(/* webpackChunkName: "app-auto" */ '../views/ai-app-test/Index.vue')
+        redirect: '/'
       },
       {
         path: 'project-config',

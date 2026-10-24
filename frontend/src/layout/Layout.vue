@@ -39,14 +39,26 @@
           <el-menu-item index="/api-test/reports">测试报告</el-menu-item>
         </el-submenu>
 
-        <el-menu-item index="/web-auto">
+        <el-submenu index="agent-test">
+          <template slot="title">
+            <i class="el-icon-s-opportunity" />
+            <span>agent测试</span>
+          </template>
+          <el-menu-item index="/agent-test/projects">添加项目</el-menu-item>
+          <el-menu-item index="/agent-test/cases">用例管理</el-menu-item>
+          <el-menu-item index="/agent-test/reports">报告查看</el-menu-item>
+          <el-menu-item index="/agent-test/security-reports">安全报告</el-menu-item>
+        </el-submenu>
+
+        <!-- Web / APP 自动化暂无实际内容，菜单先隐藏 -->
+        <!-- <el-menu-item index="/web-auto">
           <i class="el-icon-monitor" />
           <span slot="title">Web 自动化测试</span>
         </el-menu-item>
         <el-menu-item index="/app-auto">
           <i class="el-icon-mobile-phone" />
           <span slot="title">APP 自动化测试</span>
-        </el-menu-item>
+        </el-menu-item> -->
         <el-menu-item index="/project-config">
           <i class="el-icon-setting" />
           <span slot="title">项目配置</span>
@@ -107,6 +119,10 @@ const TITLE_MAP = {
   '/api-test/data': '数据配置',
   '/api-test/runs': '用例执行',
   '/api-test/reports': '测试报告',
+  '/agent-test/projects': '添加项目',
+  '/agent-test/cases': '用例管理',
+  '/agent-test/reports': '报告查看',
+  '/agent-test/security-reports': '安全报告',
   '/web-auto': 'Web 自动化测试',
   '/app-auto': 'APP 自动化测试',
   '/project-config': '项目配置',

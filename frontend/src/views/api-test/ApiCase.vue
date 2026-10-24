@@ -52,7 +52,7 @@
       />
     </div>
 
-    <el-dialog :title="formTitle" :visible.sync="dialogVisible" width="720px" append-to-body :close-on-click-modal="false" @closed="resetForm">
+    <el-dialog :title="formTitle" :visible.sync="dialogVisible" width="860px" append-to-body :close-on-click-modal="false" @closed="resetForm">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
         <el-form-item label="关联接口" prop="interface_id">
           <el-select v-model="form.interface_id" placeholder="请选择接口" filterable style="width: 100%">
@@ -90,11 +90,44 @@
         <el-form-item label="期望状态码">
           <el-input v-model="form.expected_status" style="width: 160px" />
         </el-form-item>
-        <el-form-item label="期望响应">
-          <el-input v-model="form.expected_body" type="textarea" :rows="4" />
+        <el-form-item label="期望响应包含">
+          <el-input v-model="form.expected_body" type="textarea" :rows="2" placeholder="整段响应文本包含该片段，可留空" />
         </el-form-item>
-        <el-form-item label="断言 JSON">
-          <el-input v-model="form.assertionsText" type="textarea" :rows="4" placeholder='[{"name":"status","expected":"200"}]' />
+        <el-form-item label="断言">
+          <p class="assert-hint">类似 Postman：等于 / 包含 / 不包含 / 存在。JSON 路径如 code、data.token。</p>
+          <div class="assert-table">
+            <div class="assert-head">
+              <span>校验对象</span>
+              <span>字段 / 路径</span>
+              <span>比较</span>
+              <span>期望值</span>
+              <span />
+            </div>
+            <div v-for="(row, index) in form.assertions" :key="index" class="assert-row">
+              <el-select v-model="row.source" size="small">
+                <el-option label="状态码" value="status" />
+                <el-option label="响应体" value="body" />
+                <el-option label="JSON 字段" value="json" />
+                <el-option label="响应头" value="header" />
+                <el-option label="响应时间" value="time" />
+              </el-select>
+              <el-input v-model="row.path" size="small" :placeholder="pathPlaceholder(row.source)" />
+              <el-select v-model="row.operator" size="small">
+                <el-option label="等于" value="eq" />
+                <el-option label="包含" value="contains" />
+                <el-option label="不包含" value="not_contains" />
+                <el-option label="不等于" value="ne" />
+                <el-option label="存在" value="exists" />
+                <el-option label="不存在" value="not_exists" />
+                <el-option label="正则" value="matches" />
+                <el-option label="大于" value="gt" />
+                <el-option label="小于" value="lt" />
+              </el-select>
+              <el-input v-model="row.expected" size="small" :disabled="row.operator === 'exists' || row.operator === 'not_exists'" placeholder="期望值" />
+              <el-button type="text" class="btn-delete" @click="removeAssertion(index)">删除</el-button>
+            </div>
+          </div>
+          <el-button type="text" icon="el-icon-plus" @click="addAssertion">添加断言</el-button>
         </el-form-item>
       </el-form>
       <span slot="footer">
@@ -244,19 +277,44 @@ export default {
         request_body: '',
         expected_status: '200',
         expected_body: '',
-        assertionsText: '[]'
+        assertions: [this.emptyAssertion('status', 'eq', '200')]
       }
+    },
+    emptyAssertion(source = 'json', operator = 'eq', expected = '') {
+      return { source, path: '', operator, expected }
+    },
+    pathPlaceholder(source) {
+      if (source === 'json') return '如 code 或 data.token'
+      if (source === 'header') return '如 Content-Type'
+      return '可不填'
+    },
+    addAssertion() {
+      this.form.assertions.push(this.emptyAssertion())
+    },
+    removeAssertion(index) {
+      this.form.assertions.splice(index, 1)
+    },
+    normalizeAssertion(item) {
+      if (!item || typeof item !== 'object') return this.emptyAssertion()
+      const name = String(item.name || item.check || '').trim()
+      let source = String(item.source || item.target || '').trim().toLowerCase()
+      let path = String(item.path || item.jsonpath || item.key || '').trim()
+      let operator = String(item.operator || item.type || item.compare || '').trim().toLowerCase()
+      const expected = item.expected == null ? (item.value == null ? '' : String(item.value)) : String(item.expected)
+      if (!source) {
+        if (['status', 'status_code'].includes(name.toLowerCase())) source = 'status'
+        else if (['body', 'response'].includes(name.toLowerCase())) source = 'body'
+        else if (name) {
+          source = 'json'
+          path = path || name
+        } else source = 'body'
+      }
+      if (!operator) operator = 'eq'
+      if (source === 'jsonpath' || source === 'field') source = 'json'
+      return { source, path, operator, expected }
     },
     interfaceLabel(item) {
       return `[${item.id}] ${item.method} ${item.name}`
-    },
-    parseAssertions(text) {
-      const raw = (text || '').trim() || '[]'
-      const parsed = JSON.parse(raw)
-      if (!Array.isArray(parsed)) {
-        throw new Error('断言必须是 JSON 数组')
-      }
-      return parsed
     },
     async fetchInterfaces() {
       try {
@@ -318,7 +376,9 @@ export default {
         request_body: row.request_body,
         expected_status: row.expected_status,
         expected_body: row.expected_body,
-        assertionsText: JSON.stringify(row.assertions || [], null, 2)
+        assertions: (row.assertions || []).length
+          ? row.assertions.map(item => this.normalizeAssertion(item))
+          : [this.emptyAssertion('status', 'eq', row.expected_status || '200')]
       }
       this.dialogVisible = true
     },
@@ -331,13 +391,14 @@ export default {
     submitForm() {
       this.$refs.formRef.validate(async (valid) => {
         if (!valid) return
-        let assertions
-        try {
-          assertions = this.parseAssertions(this.form.assertionsText)
-        } catch (e) {
-          this.$message.error('断言必须是合法 JSON 数组')
-          return
-        }
+        const assertions = (this.form.assertions || [])
+          .filter(item => item && (item.source || item.path || item.expected || item.operator === 'exists' || item.operator === 'not_exists'))
+          .map(item => ({
+            source: item.source || 'json',
+            path: item.path || '',
+            operator: item.operator || 'eq',
+            expected: item.expected || ''
+          }))
         this.saving = true
         const payload = {
           interface_id: this.form.interface_id,
@@ -558,5 +619,37 @@ export default {
 .muted {
   color: #6b7280;
   font-size: 12px;
+}
+
+.assert-hint {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.assert-table {
+  border: 1px solid #e8edf3;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.assert-head,
+.assert-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 110px 1fr 48px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+}
+
+.assert-head {
+  background: #f8fafc;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.btn-delete {
+  color: #dc2626;
 }
 </style>

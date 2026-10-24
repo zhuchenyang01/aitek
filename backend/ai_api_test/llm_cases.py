@@ -28,7 +28,11 @@ request_query（同上，可空数组）,
 request_body（字符串，JSON 请求体或空字符串）,
 expected_status（如 200、400、401）,
 expected_body（期望响应片段或空字符串）,
-assertions（[{{"name","expected"}}]，至少 1 条）
+assertions（至少 1 条，Postman 风格：
+source=status|body|json|header|time，
+operator=eq|contains|not_contains|ne|exists|matches|gt|lt，
+path=JSON 路径如 data.token 或响应头名，
+expected=期望值）
 
 接口定义：
 {interface}
@@ -87,10 +91,18 @@ def normalize_case(item):
     for row in assertions:
         if not isinstance(row, dict):
             continue
+        expected = row.get('expected')
+        if expected is None:
+            expected = row.get('value')
+        if expected is not None and not isinstance(expected, (dict, list)):
+            expected = str(expected).strip()
         clean_assertions.append(
             {
+                'source': str(row.get('source') or row.get('target') or '').strip(),
+                'path': str(row.get('path') or row.get('jsonpath') or row.get('key') or '').strip(),
+                'operator': str(row.get('operator') or row.get('type') or row.get('compare') or 'eq').strip(),
                 'name': str(row.get('name') or row.get('check') or '').strip(),
-                'expected': str(row.get('expected') or row.get('value') or '').strip(),
+                'expected': expected if expected is not None else '',
             }
         )
     headers = item.get('request_headers') if isinstance(item.get('request_headers'), list) else []
